@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@types/google-apps-script": "^1.0.80",
+    "jsdoc": "^4.0.2"
+  },
+  "scripts": {
+    "doc": "jsdoc src/"
+  }
+}
