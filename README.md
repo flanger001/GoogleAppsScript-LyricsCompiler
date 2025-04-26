@@ -146,7 +146,7 @@ const props =  {
   primarySheetName: "All",
   referenceSheetName: "All",
   referenceSheetRange: "A2:B",
-  searchColumn: 1,
+  primarySheetSearchColumn: 1,
   lyricsDocumentId: "1JY5n8pOB8-A6KgixlMMm3Fnw70MFCxf8EwQCXwL4VsI",
   lyricsFolderId: "1u7DFxk4MXY8TMmiWWoKtCEp1nLGkIcWt",
   targetFolderId: "1U71-XSHAXmj684IBVBbXlHBpYzhdZC-c",

@@ -48,6 +48,8 @@ function recompileLyricsDocument(props) {
     return
   }
 
+  console.log("buildSong", buildSong)
+
   // Build list of song objects
   const songsList = spreadsheet
     .getSheetByName(referenceSheetName)
@@ -62,7 +64,7 @@ function recompileLyricsDocument(props) {
       []
     )
 
-  let update = false
+  let update = true
   const lyricsDocumentFile = DriveApp.getFileById(lyricsDocumentId)
   // Check if we need to recompile the lyrics file
   const searchString = `modifiedDate > "${lyricsDocumentFile.getLastUpdated().toISOString()}" and "${lyricsFolderId}" in parents and trashed = false`

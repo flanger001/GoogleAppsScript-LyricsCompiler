@@ -1,3 +1,26 @@
+const debug = false
+const collator = new Intl.Collator("en", { sensitivity: "base" })
+function getAllDocumentsInFolder(targetFolderId) {
+  const files = DriveApp.searchFiles(`"${targetFolderId}" in parents and trashed = false`);
+  const songs = [];
+  while (files.hasNext()) {
+    const file = files.next();
+    const song = {
+      name: file.getName(),
+      id: file.getId()
+    }
+    songs.push(song);
+  }
+  return songs;
+}
+
+function log(...args) {
+  if (!debug) {
+    return
+  }
+  console.log(args)
+}
+
 /**
  * Reads from a Google Sheets spreadsheet, searches for a document with the name given in the cell,
  * then writes a document ID to another cell.
@@ -5,15 +28,15 @@
  * @param {Object} props - Main props object
  * @param {string} props.primarySheetName - Name of the primary sheet to listen to changes on
  * @param {string} props.lyricsFolderId - ID of lyrics folder
- * @param {string} [props.searchColumn] - Column number to search for search string
+ * @param {string} [props.primarySheetSearchColumn] - Column number to search for search string
  * @param {function(Array<string>): string} [props.buildSearchString] - Optional function to build a search string from the given cells
- * @param {string} [props.idColumn] - Column number to write IDs to
+ * @param {string} [props.primarySheetIdColumn] - Column number to write IDs to
  */
-function addSongIdToCells(props) {
+function addSongIdToCells(event, props) {
   const {
     primarySheetName,
     lyricsFolderId,
-    searchColumn = 1,
+    primarySheetSearchColumn = 1,
     buildSearchString = (element) => {
       const [title] = element;
       return title
@@ -22,7 +45,7 @@ function addSongIdToCells(props) {
 
   const sheet = SpreadsheetApp.getActiveSheet()
   const sheetName = sheet.getName()
-  const idColumn = props.idColumn || sheet.getLastColumn()
+  const primarySheetIdColumn = props.primarySheetIdColumn || sheet.getLastColumn()
   if (sheetName === primarySheetName) {
     console.log("Lyrics backing sheet found, continuing")
   }
@@ -30,33 +53,35 @@ function addSongIdToCells(props) {
     console.log(`Sheet ${sheetName} is not a lyrics backing sheet, exiting`)
     return
   }
+  const { range } = event
 
-  // Build search string from current cell
-  const cell = SpreadsheetApp.getCurrentCell()
-  const searchString = sheet
-    .getRange(cell.getRow(), searchColumn, 1, 2)
-    .getValues()
-    .reduce((str, element) => {
-      return str += buildSearchString(element)
-    }, "")
-
-  // Check if lyrics file exists
-  let file
-  const query = `title = "${searchString}" and "${lyricsFolderId}" in parents and trashed = false`
-  const search = DriveApp.searchFiles(query)
-  if (search.hasNext()) {
-    file = search.next()
+  // Build list of files to search in-memory
+  const files = getAllDocumentsInFolder(lyricsFolderId)
+  const findFileByName = (name) => {
+    log(`Searching for ${name}...`);
+    return files.find((file) => collator.compare(file.name, name) === 0);
   }
-  if (!file) {
-    console.log(`File ${searchString} not found, exiting`)
-    return
+  const searchRange = sheet.getRange(range.getRow(), primarySheetSearchColumn, range.getNumRows(), 2).getValues();
+  const idValues = []
+  for (const row of searchRange) {
+    // Build our search string for our file, then check for it in our list
+    const searchString = buildSearchString(row)
+    const file = findFileByName(searchString)
+    if (!file) {
+      console.log(`File ${searchString} not found, exiting`)
+      // "Write" an empty value to the cell
+      idValues.push([""])
+      continue
+    }
+
+    // Congratulations!
+    console.log(`Found file for ${searchString} with id ${file.id}`)
+
+    // Build ID value to write to target range
+    idValues.push([file.id])
   }
 
-  // Congratulations!
-  console.log(`Found file with id ${file.getId()}`)
-
-  // Get target cell and write the song id
-  const targetCell = sheet.getRange(cell.getRow(), idColumn, 1, 1)
-  targetCell.setValue(file.getId())
-  console.log(`Wrote ${file.getId()} for ${searchString} to cell ${targetCell.getA1Notation()}`)
+  // Get our target range and write the IDs
+  const targetRange = sheet.getRange(range.getRow(), primarySheetIdColumn, range.getNumRows())
+  targetRange.setValues(idValues);
 }
